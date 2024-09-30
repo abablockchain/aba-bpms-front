@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { initKeycloak, keycloak, logout } from "../../auth/keycloakConfig";
+import { Avatar } from "antd";
 
 const KeycloakContext = createContext({
   initialized: false,

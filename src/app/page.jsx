@@ -1,5 +1,4 @@
 "use client";
-import React, { useRef, useState, useMemo, useEffect } from "react";
 import {
   GithubFilled,
   InfoCircleFilled,
@@ -7,15 +6,32 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { PageContainer, ProCard, ProLayout } from "@ant-design/pro-components";
-import defaultProps from "../constants/_defaultProps";
-import { Button, ConfigProvider, Dropdown } from "antd";
-import theme from "../config/Themes/Th01";
-import { KeycloakProvider, useKeycloak } from "../auth/keycloakProvider";
+import { Avatar, Button, Dropdown } from "antd";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useKeycloak } from "../auth/keycloakProvider";
+import defaultProps from "../constants/_defaultProps";
+import { AccountMeService } from "../Services/AccountMeService";
+
+const loading = () => (
+  <div style={{ textAlignLast: "center", fontSize: "20px" }}>
+    <Avatar
+      src="https://aba-public.s3.amazonaws.com/icon_original_transparente.png"
+      className="logoAnimation"
+      size={80}
+    />
+    <p>Carregando...</p>
+  </div>
+);
 
 export default function RootLayout({ children }) {
+  console.log(children);
+
   const { initialized, authenticated, account, logout } = useKeycloak();
   const router = useRouter();
+  const accountMeService = new AccountMeService();
+
+  const [accountMe, setAccountMe] = useState();
 
   // Configurações do layout
   const settings = {
@@ -41,170 +57,188 @@ export default function RootLayout({ children }) {
     }
   };
 
+  const getAccountMe = () => {
+    accountMeService
+      .getMe()
+      .then((data) => {
+        setAccountMe(data?.content);
+      })
+      .catch((error) => {
+        const errorMessage =
+          error.response?.data?.message || "Erro desconhecido";
+        console.error(error);
+        message.error(errorMessage);
+      });
+  };
+
   useEffect(() => {
-    if (!authenticated) {
+    if (initialized && authenticated) {
+      getAccountMe();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialized && !authenticated) {
       localStorage.removeItem("token");
       logout();
       router.push(`/`);
+    } else {
+      window.addEventListener("resize", () => {
+        console.log(window.innerHeight, window.innerWidth);
+      });
+      setDomLoaded(true);
     }
-
-    window.addEventListener("resize", () => {
-      console.log(window.innerHeight, window.innerWidth);
-    });
-    setDomLoaded(true);
   }, []);
+
+  if (!initialized) {
+    return loading();
+  }
 
   return (
     <>
-      <KeycloakProvider>
-        <ConfigProvider theme={theme}>
-          {authenticated && (
-            <>
-              {domLoaded ? (
-                <div
-                  id="test-pro-layout"
-                  style={{
-                    height: "100vh",
-                  }}
-                >
-                  <ProLayout
-                    bgLayoutImgList={[
-                      {
-                        src: "https://img.alicdn.com/imgextra/i2/O1CN01O4etvp1DvpFLKfuWq_!!6000000000279-2-tps-609-606.png",
-                        left: 85,
-                        bottom: 100,
-                        height: "303px",
-                      },
-                      {
-                        src: "https://img.alicdn.com/imgextra/i2/O1CN01O4etvp1DvpFLKfuWq_!!6000000000279-2-tps-609-606.png",
-                        bottom: -68,
-                        right: -45,
-                        height: "303px",
-                      },
-                      {
-                        src: "https://img.alicdn.com/imgextra/i3/O1CN018NxReL1shX85Yz6Cx_!!6000000005798-2-tps-884-496.png",
-                        bottom: 0,
-                        left: 0,
-                        width: "331px",
-                      },
-                    ]}
-                    {...defaultProps}
-                    location={{
-                      pathname,
-                    }}
-                    menu={{
-                      type: "group",
-                    }}
-                    avatarProps={{
-                      src: { avatarDefault },
-                      size: "small",
-                      title: authenticated ? account?.name : "Deslogado",
-                    }}
-                    actionsRender={(props) => {
-                      if (props.isMobile) return [];
-                      const bb = authenticated ? (
-                        <Dropdown
-                          overlay={profileMenu}
-                          placement="bottomRight"
-                          arrow
-                        >
-                          <Button
-                            type="link"
-                            icon={<UserOutlined />}
-                            style={{
-                              float: "right",
-                              margin: "16px 24px 16px 0",
-                            }}
-                          >
-                            {account?.name}
-                          </Button>
-                        </Dropdown>
-                      ) : (
-                        <Button
-                          type="link"
-                          //onClick={login}
-                          style={{ float: "right", margin: "16px 24px 16px 0" }}
-                        >
-                          Login
-                        </Button>
-                      );
-
-                      return [
-                        <InfoCircleFilled key="InfoCircleFilled" />,
-                        <QuestionCircleFilled key="QuestionCircleFilled" />,
-                        <GithubFilled key="GithubFilled" />,
-                        bb,
-                      ];
-                    }}
-                    menuFooterRender={(props) => {
-                      if (props?.collapsed) return undefined;
-                      return (
-                        <div
-                          style={{
-                            textAlign: "center",
-                            paddingBlockStart: 12,
-                          }}
-                        >
-                          <div>© 2024</div>
-                          <div>AbaBlockchain</div>
-                        </div>
-                      );
-                    }}
-                    onMenuHeaderClick={(e) => console.log(e)}
-                    title="nIAM"
-                    logo={logoBlue}
-                    /*-------------------------It renders in left drawer ----------------------------------*/
-                    // menuHeaderRender={(logo, title) => (
-                    //   <div
-                    //     id="customize_menu_header"
-                    //     style={{
-                    //       height: "32px",
-                    //       display: "flex",
-                    //       alignItems: "center",
-                    //       gap: 8,
-                    //     }}
-                    //   >
-                    //     {logo}
-                    //     {/* {title} */}
-                    //   </div>
-                    // )}
-                    /*------------------------------it renders at navbar-----------------------*/
-                    headerTitleRender={(logo, title, _) => {
-                      return (
-                        <a>
-                          {logo}
-                          {/* {title} */}
-                        </a>
-                      );
-                    }}
-                    menuItemRender={(item, dom) => (
-                      <div
-                        onClick={() => {
-                          setPathname(item.path || "/welcome");
-                        }}
-                      >
-                        {dom}
-                      </div>
-                    )}
-                    {...settings}
-                  >
-                    <PageContainer breadcrumb={false} title={false}>
-                      <ProCard
+      {authenticated && (
+        <>
+          {domLoaded ? (
+            <div
+              id="test-pro-layout"
+              style={{
+                height: "100vh",
+              }}
+            >
+              <ProLayout
+                bgLayoutImgList={[
+                  {
+                    src: "https://img.alicdn.com/imgextra/i2/O1CN01O4etvp1DvpFLKfuWq_!!6000000000279-2-tps-609-606.png",
+                    left: 85,
+                    bottom: 100,
+                    height: "303px",
+                  },
+                  {
+                    src: "https://img.alicdn.com/imgextra/i2/O1CN01O4etvp1DvpFLKfuWq_!!6000000000279-2-tps-609-606.png",
+                    bottom: -68,
+                    right: -45,
+                    height: "303px",
+                  },
+                  {
+                    src: "https://img.alicdn.com/imgextra/i3/O1CN018NxReL1shX85Yz6Cx_!!6000000005798-2-tps-884-496.png",
+                    bottom: 0,
+                    left: 0,
+                    width: "331px",
+                  },
+                ]}
+                {...defaultProps}
+                location={{
+                  pathname,
+                }}
+                menu={{
+                  type: "group",
+                }}
+                avatarProps={{
+                  src: { avatarDefault },
+                  size: "small",
+                  title: authenticated
+                    ? account?.name + " LOGADO"
+                    : "Deslogado",
+                }}
+                actionsRender={(props) => {
+                  if (props.isMobile) return [];
+                  const bb = authenticated ? (
+                    <Dropdown placement="bottomRight" arrow>
+                      <Button
+                        type="link"
+                        icon={<UserOutlined />}
                         style={{
-                          height: "100vh",
-                          minHeight: 800,
+                          float: "right",
+                          margin: "16px 24px 16px 0",
                         }}
                       >
-                        {children}
-                      </ProCard>
-                    </PageContainer>
-                  </ProLayout>
-                </div>
-              ) : null}
-            </>
-          )}
-        </ConfigProvider>
-      </KeycloakProvider>
+                        {account?.name}
+                      </Button>
+                    </Dropdown>
+                  ) : (
+                    <Button
+                      type="link"
+                      //onClick={login}
+                      style={{ float: "right", margin: "16px 24px 16px 0" }}
+                    >
+                      Login
+                    </Button>
+                  );
+
+                  return [
+                    <InfoCircleFilled key="InfoCircleFilled" />,
+                    <QuestionCircleFilled key="QuestionCircleFilled" />,
+                    <GithubFilled key="GithubFilled" />,
+                    bb,
+                  ];
+                }}
+                menuFooterRender={(props) => {
+                  if (props?.collapsed) return undefined;
+                  return (
+                    <div
+                      style={{
+                        textAlign: "center",
+                        paddingBlockStart: 12,
+                      }}
+                    >
+                      <div>© 2024</div>
+                      <div>AbaBlockchain</div>
+                    </div>
+                  );
+                }}
+                onMenuHeaderClick={(e) => console.log(e)}
+                title="nIAM"
+                logo={logoBlue}
+                /*-------------------------It renders in left drawer ----------------------------------*/
+                // menuHeaderRender={(logo, title) => (
+                //   <div
+                //     id="customize_menu_header"
+                //     style={{
+                //       height: "32px",
+                //       display: "flex",
+                //       alignItems: "center",
+                //       gap: 8,
+                //     }}
+                //   >
+                //     {logo}
+                //     {/* {title} */}
+                //   </div>
+                // )}
+                /*------------------------------it renders at navbar-----------------------*/
+                headerTitleRender={(logo, title, _) => {
+                  return (
+                    <a>
+                      {logo}
+                      {/* {title} */}
+                    </a>
+                  );
+                }}  
+                menuItemRender={(item, dom) => (
+                  <div
+                    onClick={() => {
+                      setPathname(item.path || "/welcome");
+                    }}
+                  >
+                    {dom}
+                  </div>
+                )}
+                {...settings}
+              >
+                <PageContainer breadcrumb={false} title={false}>
+                  <ProCard
+                    style={{
+                      height: "100vh",
+                      minHeight: 800,
+                    }}
+                  >
+                    {children}
+                  </ProCard>
+                </PageContainer>
+              </ProLayout>
+            </div>
+          ) : null}
+        </>
+      )}
     </>
   );
 }
